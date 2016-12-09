@@ -26,6 +26,8 @@ public with sharing class sObjectRemote{
             qr.sObjects.add(obj);
         }
 
+        flsCheck(qr.sObjects);
+
         //Set the object type in the attributes of the QueryResult
         if(qr.sObjects.size() > 0){
             qr.sObjectAttributes.put('sObjectType',String.valueOf(qr.sObjects[0].getsObjectType()));
@@ -160,6 +162,27 @@ public with sharing class sObjectRemote{
         public QueryResult(){
             this.sObjects = new List<sObject>();
             this.sObjectAttributes = new Map<String,String>();
+        }
+    }
+
+    // FLS 
+
+    public class sObjectRemoteFLSException extends Exception {}
+    private static void flsCheck (sObject[] sObjects) {
+        if (sObjects == null || sObjects.isEmpty()) return;
+        flsCheck(sObjects[0]);
+    }
+    private static void flsCheck (sObject sobj) {
+        if (sobj == null) return;
+        Schema.SObjectType t = sobj.getSObjectType();
+        Schema.DescribeSObjectResult d = t.getDescribe();
+        if (!d.isQueryable()) {
+            throw new sObjectRemoteFLSException('The object ' + t + ' is not queryable');
+        }
+        for (String fieldName : sobj.getPopulatedFieldsAsMap().keySet()) {
+            if (!d.fields.getMap().get(fieldName).getDescribe().isAccessible()) {
+                throw new sObjectRemoteFLSException('The field ' + t + '.' + fieldName + ' is not accessable');
+            }
         }
     }
 }
